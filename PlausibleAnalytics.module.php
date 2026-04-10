@@ -38,7 +38,7 @@ class PlausibleAnalytics extends Process implements ConfigurableModule {
     public static function getModuleInfo() {
         return [
             'title'      => 'Plausible Analytics',
-            'version'    => '1.2.0',
+            'version'    => '1.2.3',
             'summary'    => 'Plausible Analytics dashboard using Stats API v2 with page-edit widget, traffic trends chart, and geo/device tabs.',
             'author'     => 'Maxim Semenov',
             'href'       => 'https://github.com/mxmsmnv/PlausibleAnalytics',
@@ -119,14 +119,14 @@ class PlausibleAnalytics extends Process implements ConfigurableModule {
         $f->icon      = 'line-chart';
         $f->collapsed = Inputfield::collapsedNo;
 
-        // Widget CSS — scoped to .plausible-card* to avoid conflicts with admin theme.
+        // Widget CSS — uses PW admin design system variables for dark mode support.
         $css  = '<style>';
         $css .= '.plausible-cards{display:flex;gap:12px;flex-wrap:wrap;margin-bottom:4px}';
-        $css .= '.plausible-card{display:flex;flex-direction:column;background:#fff;border:1px solid #e5e7eb;border-radius:6px;padding:18px 20px 16px;text-decoration:none;color:inherit;transition:border-color .15s,box-shadow .15s;min-width:140px}';
-        $css .= '.plausible-card:hover{border-color:#aaa;box-shadow:0 2px 6px rgba(0,0,0,.07);text-decoration:none;color:inherit}';
-        $css .= '.plausible-card-label{font-size:10px;font-weight:700;letter-spacing:.08em;color:#888;margin-bottom:8px;text-transform:uppercase}';
-        $css .= '.plausible-card-count{font-size:32px;font-weight:700;color:#111;line-height:1}';
-        $css .= '.plausible-card-sub{font-size:11px;color:#aaa;margin-top:4px}';
+        $css .= '.plausible-card{display:flex;flex-direction:column;background:var(--pw-blocks-background);border:1px solid var(--pw-border-color);border-radius:4px;padding:18px 20px 16px;text-decoration:none;color:var(--pw-text-color);transition:border-color .15s;min-width:140px}';
+        $css .= '.plausible-card:hover{border-color:var(--pw-muted-color);text-decoration:none;color:var(--pw-text-color)}';
+        $css .= '.plausible-card-label{font-size:10px;font-weight:700;letter-spacing:.08em;color:var(--pw-muted-color);margin-bottom:8px;text-transform:uppercase}';
+        $css .= '.plausible-card-count{font-size:32px;font-weight:700;line-height:1}';
+        $css .= '.plausible-card-sub{font-size:11px;color:var(--pw-muted-color);margin-top:4px}';
         $css .= '</style>';
 
         // Helper to render a single stat card.
@@ -196,31 +196,33 @@ class PlausibleAnalytics extends Process implements ConfigurableModule {
         $css .= '#pla-cards{display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin-bottom:24px}';
         $css .= '@media(max-width:900px){#pla-cards{grid-template-columns:repeat(3,1fr)}}';
         $css .= '@media(max-width:600px){#pla-cards{grid-template-columns:repeat(2,1fr)}}';
-        $css .= '.pla-card{background:#fff;border:1px solid #e5e7eb;border-radius:6px;padding:16px 18px 14px}';
-        $css .= '.pla-card-label{font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#888;margin-bottom:6px}';
+        $css .= '.pla-card{background:var(--pw-blocks-background);border:1px solid var(--pw-border-color);border-radius:4px;padding:16px 18px 14px}';
+        $css .= '.pla-card-label{font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--pw-muted-color);margin-bottom:6px}';
         $css .= '.pla-card-count{font-size:1.9rem;font-weight:700;line-height:1.1}';
-        $css .= '.pla-card-sub{font-size:11px;color:#aaa;margin-top:4px}';
-        // Section wrapper
-        $css .= '.pla-box{background:#fff;border:1px solid #e5e7eb;border-radius:6px;padding:20px 22px;margin-bottom:20px}';
-        $css .= '.pla-box h3{font-size:13px;font-weight:700;margin:0 0 16px;color:#111}';
+        $css .= '.pla-card-sub{font-size:11px;color:var(--pw-muted-color);margin-top:4px}';
+        // Section wrapper — matches uk-card-default
+        $css .= '.pla-box{background:var(--pw-blocks-background);border:1px solid var(--pw-border-color);border-radius:4px;padding:20px 22px;margin-bottom:20px}';
+        $css .= '.pla-box h3{font-size:13px;font-weight:700;margin:0 0 16px;color:var(--pw-text-color)}';
         // Two-column layout
         $css .= '#pla-cols{display:grid;grid-template-columns:2fr 1fr;gap:20px;margin-bottom:20px}';
         $css .= '@media(max-width:800px){#pla-cols{grid-template-columns:1fr}}';
-        // Table
+        // Table — follows uk-table-divider token colors
         $css .= '.pla-tbl{width:100%;border-collapse:collapse;font-size:13px}';
-        $css .= '.pla-tbl th{font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#999;padding:0 0 8px;border-bottom:1px solid #e5e7eb;text-align:left}';
+        $css .= '.pla-tbl th{font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--pw-muted-color);padding:0 0 8px;border-bottom:1px solid var(--pw-border-color);text-align:left}';
         $css .= '.pla-tbl th.r,.pla-tbl td.r{text-align:right}';
-        $css .= '.pla-tbl td{padding:7px 0;border-bottom:1px solid #f3f4f6;color:#333;font-size:13px}';
+        $css .= '.pla-tbl td{padding:7px 0;border-bottom:1px solid var(--pw-border-color);color:var(--pw-text-color);font-size:13px}';
         $css .= '.pla-tbl td:first-child{max-width:260px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}';
-        $css .= '.pla-tbl td strong{font-weight:600;color:#111}';
+        $css .= '.pla-tbl td strong{font-weight:600;color:var(--pw-text-color)}';
         // Links and pencil
-        $css .= '.pla-link{color:#374151;text-decoration:none}.pla-link:hover{color:#111;text-decoration:underline}';
-        $css .= '.pla-pencil{color:#d1d5db;margin-left:4px;vertical-align:middle;text-decoration:none}.pla-pencil:hover{color:#6b7280}';
-        // Tabs
+        $css .= '.pla-link{color:var(--pw-text-color);text-decoration:none}.pla-link:hover{color:var(--pw-main-color);text-decoration:underline}';
+        $css .= '.pla-pencil{color:var(--pw-border-color);margin-left:4px;vertical-align:middle;text-decoration:none}.pla-pencil:hover{color:var(--pw-muted-color)}';
+        // Tabs (uk-tab already styled by admin theme — only switcher panel)
         $css .= '.pla-tab-panel{display:none}.pla-tab-panel.active{display:block}';
         // Footer
-        $css .= '#pla-footer{display:flex;justify-content:space-between;align-items:center;margin-top:8px;padding-top:12px;border-top:1px solid #e5e7eb;font-size:11px;color:#aaa}';
-        $css .= '#pla-footer button{font-size:11px;color:#ef4444;background:none;border:none;cursor:pointer;padding:0}#pla-footer button:hover{text-decoration:underline}';
+        $css .= '#pla-footer{display:flex;justify-content:space-between;align-items:center;margin-top:8px;padding-top:12px;border-top:1px solid var(--pw-border-color);font-size:11px;color:var(--pw-muted-color)}';
+        $css .= '#pla-footer button{font-size:11px;color:var(--pw-main-color);background:none;border:none;cursor:pointer;padding:0}#pla-footer button:hover{text-decoration:underline}';
+        // Chart grid lines respect dark mode
+        $css .= '.pla-chart-grid{color:var(--pw-border-color)}';
         $css .= '</style>';
 
         $out  = $css;
@@ -369,6 +371,13 @@ class PlausibleAnalytics extends Process implements ConfigurableModule {
         $out .= '(function(){function init(){';
         $out .= 'var el=document.getElementById("plaChart");';
         $out .= 'if(!el||!window.Chart)return;';
+        $out .= "var probe=document.createElement('span');";
+        $out .= "probe.style.cssText='position:absolute;visibility:hidden;color:var(--pw-muted-color);border-color:var(--pw-border-color)';";
+        $out .= "document.body.appendChild(probe);";
+        $out .= "var ps=getComputedStyle(probe);";
+        $out .= "var borderClr=ps.borderTopColor||'#e5e7eb';";
+        $out .= "var mutedClr=ps.color||'#888';";
+        $out .= "document.body.removeChild(probe);";
         $out .= 'var ctx=el.getContext("2d");';
         $out .= 'var grad=ctx.createLinearGradient(0,0,0,280);';
         $out .= 'grad.addColorStop(0,"rgba(59,130,246,0.25)");';
@@ -378,9 +387,9 @@ class PlausibleAnalytics extends Process implements ConfigurableModule {
         $out .= '{label:"Pageviews",data:' . $jp . ',borderColor:"#f59e0b",backgroundColor:"transparent",fill:false,tension:0.4,borderDash:[5,4],borderWidth:2,pointRadius:0,pointHoverRadius:4}';
         $out .= ']},options:{responsive:true,maintainAspectRatio:false,';
         $out .= 'interaction:{intersect:false,mode:"index"},';
-        $out .= 'plugins:{legend:{position:"bottom",labels:{font:{size:11},color:"#555",boxWidth:14,padding:20}}},';
-        $out .= 'scales:{y:{beginAtZero:true,grid:{color:"#f0f0f0"},ticks:{color:"#aaa",font:{size:11}}},';
-        $out .= 'x:{grid:{display:false},ticks:{color:"#aaa",font:{size:11},maxTicksLimit:10}}}}});';
+        $out .= 'plugins:{legend:{position:"bottom",labels:{font:{size:11},color:mutedClr,boxWidth:14,padding:20}}},';
+        $out .= 'scales:{y:{beginAtZero:true,grid:{color:borderClr},ticks:{color:mutedClr,font:{size:11}}},';
+        $out .= 'x:{grid:{display:false},ticks:{color:mutedClr,font:{size:11},maxTicksLimit:10}}}}});';
         $out .= '}if(document.readyState==="loading"){document.addEventListener("DOMContentLoaded",init);}else{init();}';
         $out .= '})();';
         $out .= '</script>';
@@ -430,14 +439,21 @@ class PlausibleAnalytics extends Process implements ConfigurableModule {
             $out .= '<div style="height:' . $chartHeight . 'px;margin-bottom:20px"><canvas id="plaPageChart"></canvas></div>';
             $out .= '<script>';
             $out .= '(function(){function init(){';
+            $out .= "var probe=document.createElement('span');";
+            $out .= "probe.style.cssText='position:absolute;visibility:hidden;color:var(--pw-muted-color);border-color:var(--pw-border-color)';";
+            $out .= "document.body.appendChild(probe);";
+            $out .= "var ps=getComputedStyle(probe);";
+            $out .= "var borderClr=ps.borderTopColor||'#e5e7eb';";
+            $out .= "var mutedClr=ps.color||'#888';";
+            $out .= "document.body.removeChild(probe);";
             $out .= 'var el=document.getElementById("plaPageChart");';
             $out .= 'if(!el||!window.Chart)return;';
             $out .= 'new Chart(el,{type:"bar",data:{labels:' . $jLabels . ',';
             $out .= 'datasets:[{data:' . $jValues . ',backgroundColor:"rgba(59,130,246,0.75)",borderRadius:3,borderSkipped:false}]},';
             $out .= 'options:{indexAxis:"y",responsive:true,maintainAspectRatio:false,';
             $out .= 'plugins:{legend:{display:false},tooltip:{callbacks:{label:function(c){return" "+c.parsed.x+" visitors"}}}},';
-            $out .= 'scales:{x:{beginAtZero:true,grid:{color:"#f0f0f0"},ticks:{color:"#aaa",font:{size:11}}},';
-            $out .= 'y:{grid:{display:false},ticks:{color:"#444",font:{size:11}}}}}});';
+            $out .= 'scales:{x:{beginAtZero:true,grid:{color:borderClr},ticks:{color:mutedClr,font:{size:11}}},';
+            $out .= 'y:{grid:{display:false},ticks:{color:mutedClr,font:{size:11}}}}}});';
             $out .= '}if(document.readyState==="loading"){document.addEventListener("DOMContentLoaded",init);}else{init();}';
             $out .= '})();';
             $out .= '</script>';
@@ -518,12 +534,19 @@ class PlausibleAnalytics extends Process implements ConfigurableModule {
             $out .= '<div style="height:220px;display:flex;justify-content:center;margin-bottom:20px"><canvas id="plaSourceChart"></canvas></div>';
             $out .= '<script>';
             $out .= '(function(){function init(){';
+            $out .= "var probe=document.createElement('span');";
+            $out .= "probe.style.cssText='position:absolute;visibility:hidden;color:var(--pw-muted-color);background:var(--pw-blocks-background)';";
+            $out .= "document.body.appendChild(probe);";
+            $out .= "var ps=getComputedStyle(probe);";
+            $out .= "var mutedClr=ps.color||'#888';";
+            $out .= "var bgClr=ps.backgroundColor||'transparent';";
+            $out .= "document.body.removeChild(probe);";
             $out .= 'var el=document.getElementById("plaSourceChart");';
             $out .= 'if(!el||!window.Chart)return;';
             $out .= 'new Chart(el,{type:"doughnut",data:{labels:' . $jLabels . ',';
-            $out .= 'datasets:[{data:' . $jValues . ',backgroundColor:' . $jColors . ',borderWidth:2,borderColor:"#fff",hoverOffset:6}]},';
+            $out .= 'datasets:[{data:' . $jValues . ',backgroundColor:' . $jColors . ',borderWidth:2,borderColor:bgClr,hoverOffset:6}]},';
             $out .= 'options:{responsive:true,maintainAspectRatio:false,cutout:"65%",';
-            $out .= 'plugins:{legend:{position:"right",labels:{font:{size:11},color:"#555",boxWidth:12,padding:12}},';
+            $out .= 'plugins:{legend:{position:"right",labels:{font:{size:11},color:mutedClr,boxWidth:12,padding:12}},';
             $out .= 'tooltip:{callbacks:{label:function(c){return" "+c.label+": "+c.parsed+" visitors"}}}}}});';
             $out .= '}if(document.readyState==="loading"){document.addEventListener("DOMContentLoaded",init);}else{init();}';
             $out .= '})();';
@@ -611,14 +634,21 @@ class PlausibleAnalytics extends Process implements ConfigurableModule {
                 $out .= '<div style="height:' . $chartHeight . 'px;margin-bottom:16px"><canvas id="plaTabChart_' . $key . '"></canvas></div>';
                 $out .= '<script>';
                 $out .= '(function(){function init(){';
+                $out .= "var probe=document.createElement('span');";
+                $out .= "probe.style.cssText='position:absolute;visibility:hidden;color:var(--pw-muted-color);border-color:var(--pw-border-color)';";
+                $out .= "document.body.appendChild(probe);";
+                $out .= "var ps=getComputedStyle(probe);";
+                $out .= "var borderClr=ps.borderTopColor||'#e5e7eb';";
+                $out .= "var mutedClr=ps.color||'#888';";
+                $out .= "document.body.removeChild(probe);";
                 $out .= 'var el=document.getElementById("plaTabChart_' . $key . '");';
                 $out .= 'if(!el||!window.Chart)return;';
                 $out .= 'new Chart(el,{type:"bar",data:{labels:' . $jl . ',';
                 $out .= 'datasets:[{data:' . $jv . ',backgroundColor:"' . $rgba . '",borderRadius:3,borderSkipped:false}]},';
                 $out .= 'options:{indexAxis:"y",responsive:true,maintainAspectRatio:false,';
                 $out .= 'plugins:{legend:{display:false},tooltip:{callbacks:{label:function(c){return" "+c.parsed.x+" visitors"}}}},';
-                $out .= 'scales:{x:{beginAtZero:true,grid:{color:"#f0f0f0"},ticks:{color:"#aaa",font:{size:11}}},';
-                $out .= 'y:{grid:{display:false},ticks:{color:"#444",font:{size:11}}}}}});}';
+                $out .= 'scales:{x:{beginAtZero:true,grid:{color:borderClr},ticks:{color:mutedClr,font:{size:11}}},';
+                $out .= 'y:{grid:{display:false},ticks:{color:mutedClr,font:{size:11}}}}}});}';
                 $out .= 'if(document.readyState==="loading"){document.addEventListener("DOMContentLoaded",init);}else{init();}';
                 $out .= '})();';
                 $out .= '</script>';
