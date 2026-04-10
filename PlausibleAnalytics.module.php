@@ -38,7 +38,7 @@ class PlausibleAnalytics extends Process implements ConfigurableModule {
     public static function getModuleInfo() {
         return [
             'title'      => 'Plausible Analytics',
-            'version'    => '1.2.3',
+            'version'    => '1.3.0',
             'summary'    => 'Plausible Analytics dashboard using Stats API v2 with page-edit widget, traffic trends chart, and geo/device tabs.',
             'author'     => 'Maxim Semenov',
             'href'       => 'https://github.com/mxmsmnv/PlausibleAnalytics',
@@ -221,6 +221,12 @@ class PlausibleAnalytics extends Process implements ConfigurableModule {
         // Footer
         $css .= '#pla-footer{display:flex;justify-content:space-between;align-items:center;margin-top:8px;padding-top:12px;border-top:1px solid var(--pw-border-color);font-size:11px;color:var(--pw-muted-color)}';
         $css .= '#pla-footer button{font-size:11px;color:var(--pw-main-color);background:none;border:none;cursor:pointer;padding:0}#pla-footer button:hover{text-decoration:underline}';
+        $css .= '.pla-filter-bar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:16px;min-height:32px}';
+        $css .= '.pla-filter-tag{display:inline-flex;align-items:center;gap:6px;background:var(--pw-main-color);color:#fff;font-size:11px;font-weight:600;padding:3px 10px 3px 12px;border-radius:99px}';
+        $css .= '.pla-filter-tag a{color:#fff;opacity:.8;text-decoration:none;font-size:14px;line-height:1}.pla-filter-tag a:hover{opacity:1}';
+        $css .= '.pla-filter-clear{font-size:11px;color:var(--pw-muted-color);text-decoration:none;margin-left:4px}.pla-filter-clear:hover{color:var(--pw-main-color)}';
+        $css .= '.pla-filterable{cursor:pointer}.pla-filterable:hover{color:var(--pw-main-color)!important}';
+        $css .= '.pla-filterable-row:hover td{background:var(--pw-inputs-background)}';
         // Chart grid lines respect dark mode
         $css .= '.pla-chart-grid{color:var(--pw-border-color)}';
         $css .= '</style>';
@@ -228,6 +234,7 @@ class PlausibleAnalytics extends Process implements ConfigurableModule {
         $out  = $css;
         $out .= '<div id="pla">';
         $out .= $this->renderHeaderSelector();
+        $out .= $this->renderFilterBar();
 
         if ($this->show_summary)       $out .= $this->renderSummaryStats();
         if ($this->debug_mode && !empty($this->debug_log)) $out .= $this->renderDebugLog();
@@ -286,20 +293,18 @@ class PlausibleAnalytics extends Process implements ConfigurableModule {
         $period    = $this->getPeriod();
         $dateRange = $period;
         $subLabel  = ($period == 'day') ? 'Today' : strtoupper($period);
+        $filters   = $this->getApiFilters($this->getActiveFilters());
+        $fKey      = md5(serialize($filters));
 
         // Request 1: event metrics (visitors, visits, pageviews).
-        $agg1 = $this->getApiData([
-            'site_id'    => $this->site_id,
-            'date_range' => $dateRange,
-            'metrics'    => ['visitors', 'visits', 'pageviews'],
-        ], "summary_ev_{$dateRange}");
+        $agg1query = ['site_id' => $this->site_id, 'date_range' => $dateRange, 'metrics' => ['visitors', 'visits', 'pageviews']];
+        if ($filters) $agg1query['filters'] = $filters;
+        $agg1 = $this->getApiData($agg1query, "summary_ev_{$dateRange}_{$fKey}");
 
         // Request 2: session metrics — cannot be combined with request 1 in v2.
-        $agg2 = $this->getApiData([
-            'site_id'    => $this->site_id,
-            'date_range' => $dateRange,
-            'metrics'    => ['bounce_rate', 'visit_duration'],
-        ], "summary_ses_{$dateRange}");
+        $agg2query = ['site_id' => $this->site_id, 'date_range' => $dateRange, 'metrics' => ['bounce_rate', 'visit_duration']];
+        if ($filters) $agg2query['filters'] = $filters;
+        $agg2 = $this->getApiData($agg2query, "summary_ses_{$dateRange}_{$fKey}");
 
         // Merge into [visitors, visits, pageviews, bounce_rate, visit_duration].
         $row = array_merge(
@@ -338,13 +343,12 @@ class PlausibleAnalytics extends Process implements ConfigurableModule {
         $period    = $this->getPeriod();
         $dateRange = $period;
         $timeDim   = ($dateRange == 'day') ? 'time:hour' : 'time:day';
+        $filters   = $this->getApiFilters($this->getActiveFilters());
+        $fKey      = md5(serialize($filters));
 
-        $ts = $this->getApiData([
-            'site_id'    => $this->site_id,
-            'date_range' => $dateRange,
-            'metrics'    => ['visitors', 'pageviews'],
-            'dimensions' => [$timeDim],
-        ], "ts_{$dateRange}");
+        $tsQuery = ['site_id' => $this->site_id, 'date_range' => $dateRange, 'metrics' => ['visitors', 'pageviews'], 'dimensions' => [$timeDim]];
+        if ($filters) $tsQuery['filters'] = $filters;
+        $ts = $this->getApiData($tsQuery, "ts_{$dateRange}_{$fKey}");
 
         $labels = [];
         $vData  = [];
@@ -404,13 +408,13 @@ class PlausibleAnalytics extends Process implements ConfigurableModule {
         $period    = $this->getPeriod();
         $dateRange = $period;
 
-        $data = $this->getApiData([
-            'site_id'    => $this->site_id,
-            'date_range' => $dateRange,
-            'metrics'    => ['visitors'],
-            'dimensions' => ['event:page'],
-            'pagination' => ['limit' => 15],
-        ], "pages_{$dateRange}");
+        $activeFilters = $this->getActiveFilters();
+        $apiFilters    = $this->getApiFilters($activeFilters);
+        $fKey          = md5(serialize($apiFilters));
+
+        $pagesQuery = ['site_id' => $this->site_id, 'date_range' => $dateRange, 'metrics' => ['visitors'], 'dimensions' => ['event:page'], 'pagination' => ['limit' => 15]];
+        if ($apiFilters) $pagesQuery['filters'] = $apiFilters;
+        $data = $this->getApiData($pagesQuery, "pages_{$dateRange}_{$fKey}");
 
         $adminUrl = $this->wire('config')->urls->admin;
 
@@ -459,7 +463,7 @@ class PlausibleAnalytics extends Process implements ConfigurableModule {
             $out .= '</script>';
         }
 
-        // Table with edit links.
+        // Table with filter links and edit links.
         $out .= '<table class="pla-tbl">';
         $out .= '<thead><tr>'
             . '<th>Path</th>'
@@ -467,27 +471,29 @@ class PlausibleAnalytics extends Process implements ConfigurableModule {
             . '<th style="width:28px"></th>'
             . '</tr></thead><tbody>';
 
+        $pencil = '<svg width="14" height="14" viewBox="0 0 20 20" fill="none"><path d="M14.7 2.3a1 1 0 0 1 1.4 0l1.6 1.6a1 1 0 0 1 0 1.4l-9.9 9.9-3.5.7.7-3.5 9.7-10z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+
         if (!empty($tableRows)) {
             foreach ($tableRows as $row) {
                 $rawPath  = $row['dimensions'][0] ?? '';
                 $path     = htmlspecialchars($rawPath);
                 $visitors = $row['metrics'][0] ?? 0;
                 $p        = $this->wire('pages')->get('path=' . $rawPath);
+                $filterUrl = $this->filterAddUrl('event:page', $rawPath);
                 $pathCell = $p->id
                     ? '<a href="' . $p->url . '" target="_blank" class="pla-link" title="' . $path . '">' . $path . '</a>'
                     : '<span title="' . $path . '">' . $path . '</span>';
-                $pencil = '<svg width="14" height="14" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M14.7 2.3a1 1 0 0 1 1.4 0l1.6 1.6a1 1 0 0 1 0 1.4l-9.9 9.9-3.5.7.7-3.5 9.7-10z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>';
                 $edit = $p->id
                     ? '<a href="' . $adminUrl . 'page/edit/?id=' . $p->id . '" class="pla-pencil" title="Edit">' . $pencil . '</a>'
                     : '';
-                $out .= '<tr>'
+                $out .= '<tr class="pla-filterable-row" title="Filter by this page" style="cursor:pointer" onclick="location.href=\'' . $filterUrl . '\'">'
                     . '<td style="max-width:260px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' . $pathCell . '</td>'
                     . '<td class="r"><strong>' . $visitors . '</strong></td>'
-                    . '<td>' . $edit . '</td>'
+                    . '<td onclick="event.stopPropagation()">' . $edit . '</td>'
                     . '</tr>';
             }
         } else {
-            $out .= '<tr><td colspan="3" style="color:#aaa">No data.</td></tr>';
+            $out .= '<tr><td colspan="3" style="color:var(--pw-muted-color)">No data.</td></tr>';
         }
 
         $out .= '</tbody></table></div>';
@@ -496,16 +502,15 @@ class PlausibleAnalytics extends Process implements ConfigurableModule {
 
     /** Render the traffic sources section: donut chart + table. */
     protected function renderTopSources() {
-        $period    = $this->getPeriod();
-        $dateRange = $period;
+        $period        = $this->getPeriod();
+        $dateRange     = $period;
+        $activeFilters = $this->getActiveFilters();
+        $apiFilters    = $this->getApiFilters($activeFilters);
+        $fKey          = md5(serialize($apiFilters));
 
-        $data = $this->getApiData([
-            'site_id'    => $this->site_id,
-            'date_range' => $dateRange,
-            'metrics'    => ['visitors'],
-            'dimensions' => ['visit:source'],
-            'pagination' => ['limit' => 15],
-        ], "sources_{$dateRange}");
+        $srcQuery = ['site_id' => $this->site_id, 'date_range' => $dateRange, 'metrics' => ['visitors'], 'dimensions' => ['visit:source'], 'pagination' => ['limit' => 15]];
+        if ($apiFilters) $srcQuery['filters'] = $apiFilters;
+        $data = $this->getApiData($srcQuery, "sources_{$dateRange}_{$fKey}");
 
         // Donut color palette.
         $palette = ['#3b82f6','#f59e0b','#10b981','#ef4444','#8b5cf6','#06b6d4','#f97316','#84cc16','#ec4899','#6366f1','#14b8a6','#a78bfa','#fb7185','#fbbf24','#34d399'];
@@ -513,23 +518,27 @@ class PlausibleAnalytics extends Process implements ConfigurableModule {
         $chartLabels = [];
         $chartValues = [];
         $tableRows   = [];
+        $filterUrls  = [];
 
         if (!empty($data['results'])) {
             foreach ($data['results'] as $row) {
-                $chartLabels[] = $row['dimensions'][0] ?: 'Direct / None';
+                $srcVal        = $row['dimensions'][0] ?: '';
+                $chartLabels[] = $srcVal ?: 'Direct / None';
                 $chartValues[] = (int) ($row['metrics'][0] ?? 0);
                 $tableRows[]   = $row;
+                $filterUrls[]  = $srcVal ? $this->filterAddUrl('visit:source', $srcVal) : '';
             }
         }
 
         $jLabels  = json_encode($chartLabels);
         $jValues  = json_encode($chartValues);
         $jColors  = json_encode(array_slice($palette, 0, count($chartLabels)));
+        $jUrls    = json_encode($filterUrls);
 
         $out  = '<div class="pla-box">';
         $out .= '<h3>Sources</h3>';
 
-        // Donut chart.
+        // Donut chart — clicking a segment filters by that source.
         if (!empty($chartLabels)) {
             $out .= '<div style="height:220px;display:flex;justify-content:center;margin-bottom:20px"><canvas id="plaSourceChart"></canvas></div>';
             $out .= '<script>';
@@ -543,17 +552,21 @@ class PlausibleAnalytics extends Process implements ConfigurableModule {
             $out .= "document.body.removeChild(probe);";
             $out .= 'var el=document.getElementById("plaSourceChart");';
             $out .= 'if(!el||!window.Chart)return;';
-            $out .= 'new Chart(el,{type:"doughnut",data:{labels:' . $jLabels . ',';
+            $out .= 'var urls=' . $jUrls . ';';
+            $out .= 'var ch=new Chart(el,{type:"doughnut",data:{labels:' . $jLabels . ',';
             $out .= 'datasets:[{data:' . $jValues . ',backgroundColor:' . $jColors . ',borderWidth:2,borderColor:bgClr,hoverOffset:6}]},';
             $out .= 'options:{responsive:true,maintainAspectRatio:false,cutout:"65%",';
             $out .= 'plugins:{legend:{position:"right",labels:{font:{size:11},color:mutedClr,boxWidth:12,padding:12}},';
             $out .= 'tooltip:{callbacks:{label:function(c){return" "+c.label+": "+c.parsed+" visitors"}}}}}});';
+            $out .= 'el.onclick=function(e){var pts=ch.getElementsAtEventForMode(e,"nearest",{intersect:true},false);';
+            $out .= 'if(pts.length&&urls[pts[0].index])location.href=urls[pts[0].index];};';
+            $out .= 'el.style.cursor="pointer";';
             $out .= '}if(document.readyState==="loading"){document.addEventListener("DOMContentLoaded",init);}else{init();}';
             $out .= '})();';
             $out .= '</script>';
         }
 
-        // Table.
+        // Table — each row is clickable to filter.
         $out .= '<table class="pla-tbl"><thead><tr>'
             . '<th>Source</th>'
             . '<th class="r">Visitors</th>'
@@ -561,13 +574,15 @@ class PlausibleAnalytics extends Process implements ConfigurableModule {
 
         if (!empty($tableRows)) {
             foreach ($tableRows as $i => $row) {
-                $source   = htmlspecialchars($row['dimensions'][0] ?: 'Direct / None');
+                $srcVal   = $row['dimensions'][0] ?: '';
+                $source   = htmlspecialchars($srcVal ?: 'Direct / None');
                 $visitors = $row['metrics'][0] ?? 0;
                 $dot      = '<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:' . ($palette[$i] ?? '#ccc') . ';margin-right:6px;vertical-align:middle"></span>';
-                $out .= '<tr><td>' . $dot . $source . '</td><td class="r"><strong>' . $visitors . '</strong></td></tr>';
+                $onclick  = $filterUrls[$i] ? ' class="pla-filterable-row" style="cursor:pointer" onclick="location.href=\'' . $filterUrls[$i] . '\'"' : '';
+                $out .= '<tr' . $onclick . '><td>' . $dot . $source . '</td><td class="r"><strong>' . $visitors . '</strong></td></tr>';
             }
         } else {
-            $out .= '<tr><td colspan="2" style="color:#aaa">No data.</td></tr>';
+            $out .= '<tr><td colspan="2" style="color:var(--pw-muted-color)">No data.</td></tr>';
         }
 
         $out .= '</tbody></table></div>';
@@ -579,23 +594,30 @@ class PlausibleAnalytics extends Process implements ConfigurableModule {
      * Each tab shows a horizontal bar chart followed by a data table.
      */
     protected function renderTabsSection() {
-        $period    = $this->getPeriod();
-        $dateRange = $period;
-        $base      = ['site_id' => $this->site_id, 'date_range' => $dateRange, 'metrics' => ['visitors']];
-        $limit     = ['limit' => 10];
+        $period        = $this->getPeriod();
+        $dateRange     = $period;
+        $activeFilters = $this->getActiveFilters();
+        $apiFilters    = $this->getApiFilters($activeFilters);
+        $fKey          = md5(serialize($apiFilters));
+        $base          = ['site_id' => $this->site_id, 'date_range' => $dateRange, 'metrics' => ['visitors']];
+        $limit         = ['limit' => 10];
 
-        $geo = $this->getApiData($base + ['dimensions' => ['visit:country_name'], 'pagination' => $limit], "geo_{$dateRange}");
-        $dev = $this->getApiData($base + ['dimensions' => ['visit:device'],       'pagination' => $limit], "dev_{$dateRange}");
-        $brw = $this->getApiData($base + ['dimensions' => ['visit:browser'],      'pagination' => $limit], "brw_{$dateRange}");
+        $geoQ = $base + ['dimensions' => ['visit:country_name'], 'pagination' => $limit]; if ($apiFilters) $geoQ['filters'] = $apiFilters;
+        $devQ = $base + ['dimensions' => ['visit:device'],       'pagination' => $limit]; if ($apiFilters) $devQ['filters'] = $apiFilters;
+        $brwQ = $base + ['dimensions' => ['visit:browser'],      'pagination' => $limit]; if ($apiFilters) $brwQ['filters'] = $apiFilters;
+
+        $geo = $this->getApiData($geoQ, "geo_{$dateRange}_{$fKey}");
+        $dev = $this->getApiData($devQ, "dev_{$dateRange}_{$fKey}");
+        $brw = $this->getApiData($brwQ, "brw_{$dateRange}_{$fKey}");
 
         // Tab colors: geo=green, dev=orange, brw=blue.
         $tabColors = ['geo' => '#10b981', 'dev' => '#f59e0b', 'brw' => '#3b82f6'];
 
         // Build only enabled tabs.
         $tabs = [];
-        if ($this->show_countries) $tabs['geo'] = ['label' => 'Geography', 'col' => 'Country', 'data' => $geo];
-        if ($this->show_devices)   $tabs['dev'] = ['label' => 'Devices',   'col' => 'Device',  'data' => $dev];
-        $tabs['brw'] = ['label' => 'Browsers', 'col' => 'Browser', 'data' => $brw];
+        if ($this->show_countries) $tabs['geo'] = ['label' => 'Geography', 'col' => 'Country', 'data' => $geo, 'filterDim' => 'visit:country_name'];
+        if ($this->show_devices)   $tabs['dev'] = ['label' => 'Devices',   'col' => 'Device',  'data' => $dev, 'filterDim' => 'visit:device'];
+        $tabs['brw'] = ['label' => 'Browsers', 'col' => 'Browser', 'data' => $brw, 'filterDim' => 'visit:browser'];
 
         $firstKey = array_key_first($tabs);
         $tabId    = 'pla-tabs-' . substr(md5($dateRange), 0, 6);
@@ -654,7 +676,7 @@ class PlausibleAnalytics extends Process implements ConfigurableModule {
                 $out .= '</script>';
             }
 
-            // Data table.
+            // Data table — each row filters by that dimension value.
             $out .= '<table class="pla-tbl"><thead><tr>'
                 . '<th>' . $tab['col'] . '</th>'
                 . '<th class="r">Visitors</th>'
@@ -662,12 +684,15 @@ class PlausibleAnalytics extends Process implements ConfigurableModule {
 
             if (!empty($results)) {
                 foreach ($results as $r) {
-                    $dim = htmlspecialchars($r['dimensions'][0] ?? '—');
-                    $cnt = $r['metrics'][0] ?? 0;
-                    $out .= '<tr><td>' . $dim . '</td><td class="r"><strong>' . $cnt . '</strong></td></tr>';
+                    $dimRaw = $r['dimensions'][0] ?? '';
+                    $dim    = htmlspecialchars($dimRaw);
+                    $cnt    = $r['metrics'][0] ?? 0;
+                    $fUrl   = $dimRaw ? $this->filterAddUrl($tab['filterDim'], $dimRaw) : '';
+                    $onclick = $fUrl ? ' class="pla-filterable-row" style="cursor:pointer" onclick="location.href=\'' . $fUrl . '\'"' : '';
+                    $out .= '<tr' . $onclick . '><td>' . $dim . '</td><td class="r"><strong>' . $cnt . '</strong></td></tr>';
                 }
             } else {
-                $out .= '<tr><td colspan="2" style="color:#aaa">No data.</td></tr>';
+                $out .= '<tr><td colspan="2" style="color:var(--pw-muted-color)">No data.</td></tr>';
             }
 
             $out .= '</tbody></table></li>';
@@ -868,6 +893,110 @@ class PlausibleAnalytics extends Process implements ConfigurableModule {
      */
     protected function getPeriod() {
         return $this->wire('input')->get('period') ?: '30d';
+    }
+
+    /**
+     * Return active user-selected filters from GET parameters.
+     * Each filter: ['dimension' => 'visit:source', 'value' => 'Google']
+     *
+     * @return array
+     */
+    protected function getActiveFilters() {
+        $raw = $this->wire('input')->get('filter');
+        if (!$raw || !is_array($raw)) return [];
+        $filters = [];
+        foreach ($raw as $item) {
+            if (strpos($item, '==') === false) continue;
+            [$dim, $val] = explode('==', $item, 2);
+            $dim = $this->wire('sanitizer')->text($dim);
+            $val = $this->wire('sanitizer')->text($val);
+            if ($dim && $val !== '') $filters[] = ['dimension' => $dim, 'value' => $val];
+        }
+        return $filters;
+    }
+
+    /**
+     * Convert UI filters to Plausible API v2 filter array.
+     *
+     * @param  array $activeFilters  From getActiveFilters()
+     * @param  array $extra          Additional API filters to prepend (e.g. event:page)
+     * @return array
+     */
+    protected function getApiFilters(array $activeFilters, array $extra = []) {
+        $filters = $extra;
+        foreach ($activeFilters as $f) {
+            $filters[] = ['is', $f['dimension'], [$f['value']]];
+        }
+        return $filters;
+    }
+
+    /**
+     * Build a dashboard URL with period and filter GET params.
+     *
+     * @param  string $period
+     * @param  array  $filters  Array of ['dimension' => ..., 'value' => ...]
+     * @return string
+     */
+    protected function buildUrl($period, array $filters) {
+        $params = ['period' => $period];
+        foreach ($filters as $f) {
+            $params['filter'][] = $f['dimension'] . '==' . $f['value'];
+        }
+        return $this->wire('page')->url . '?' . http_build_query($params);
+    }
+
+    /**
+     * Build URL that adds a filter to the current set.
+     */
+    protected function filterAddUrl($dimension, $value) {
+        $current = $this->getActiveFilters();
+        foreach ($current as $f) {
+            if ($f['dimension'] === $dimension && $f['value'] === $value) {
+                return $this->buildUrl($this->getPeriod(), $current);
+            }
+        }
+        $current[] = ['dimension' => $dimension, 'value' => $value];
+        return $this->buildUrl($this->getPeriod(), $current);
+    }
+
+    /**
+     * Build URL that removes a specific filter from the current set.
+     */
+    protected function filterRemoveUrl($dimension, $value) {
+        $current = array_values(array_filter($this->getActiveFilters(), function($f) use ($dimension, $value) {
+            return !($f['dimension'] === $dimension && $f['value'] === $value);
+        }));
+        return $this->buildUrl($this->getPeriod(), $current);
+    }
+
+    /**
+     * Render active filter tags as a breadcrumb bar.
+     * Returns empty string when no filters are active.
+     */
+    protected function renderFilterBar() {
+        $filters = $this->getActiveFilters();
+        if (empty($filters)) return '';
+
+        $labels = [
+            'visit:source'       => 'Source',
+            'visit:country_name' => 'Country',
+            'visit:device'       => 'Device',
+            'visit:browser'      => 'Browser',
+            'event:page'         => 'Page',
+        ];
+
+        $out = '<div class="pla-filter-bar">';
+        foreach ($filters as $f) {
+            $label     = $labels[$f['dimension']] ?? $f['dimension'];
+            $removeUrl = $this->filterRemoveUrl($f['dimension'], $f['value']);
+            $out .= '<span class="pla-filter-tag">'
+                . htmlspecialchars($label . ': ' . $f['value'])
+                . ' <a href="' . $removeUrl . '" title="Remove">&times;</a>'
+                . '</span>';
+        }
+        $out .= '<a href="' . $this->buildUrl($this->getPeriod(), []) . '" class="pla-filter-clear">Clear all</a>';
+        $out .= '</div>';
+        return $out;
     }
 
     /**
