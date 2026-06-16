@@ -19,7 +19,7 @@
  *    use visit:entry_page filters instead for per-page session data.
  *
  * @version 1.2.0
- * @author  Maxim Semenov
+ * @author  Maxim Semenov <maxim@smnv.org> (smnv.org)
  * @link    https://github.com/mxmsmnv/PlausibleAnalytics
  * @link    https://smnv.org
  */
@@ -41,7 +41,7 @@ class PlausibleAnalytics extends Process implements ConfigurableModule {
             'version'    => '1.3.0',
             'summary'    => 'Plausible Analytics dashboard using Stats API v2 with page-edit widget, traffic trends chart, and geo/device tabs.',
             'author'     => 'Maxim Semenov',
-            'href'       => 'https://github.com/mxmsmnv/PlausibleAnalytics',
+            'href'       => 'https://smnv.org',
             'icon'       => 'line-chart',
             'permission' => 'plausible-view',
             'autoload'   => true,
