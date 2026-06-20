@@ -769,7 +769,6 @@ class PlausibleAnalytics extends Process implements ConfigurableModule {
         ]);
         $response = curl_exec($ch);
         $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-        curl_close($ch);
 
         if ($httpCode === 200 && is_numeric(trim($response))) {
             $count = (int) trim($response);
@@ -840,7 +839,6 @@ class PlausibleAnalytics extends Process implements ConfigurableModule {
         $response = curl_exec($ch);
         $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
         $curlErr  = curl_error($ch);
-        curl_close($ch);
 
         if ($this->debug_mode) {
             $this->debug_log[] = 'POST /api/v2/query | Code: ' . $httpCode
