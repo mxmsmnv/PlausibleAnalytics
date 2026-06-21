@@ -4,6 +4,8 @@ A full-featured [Plausible Analytics](https://plausible.io) dashboard module for
 
 **Repository:** [github.com/mxmsmnv/PlausibleAnalytics](https://github.com/mxmsmnv/PlausibleAnalytics)  
 
+![PlausibleAnalytics](assets/PlausibleAnalytics.png)
+
 **Author:** Maxim Semenov  
 **Website:** [smnv.org](https://smnv.org)  
 **Email:** [maxim@smnv.org](mailto:maxim@smnv.org)
