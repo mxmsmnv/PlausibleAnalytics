@@ -6,6 +6,30 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [1.3.1] - 2026-09-30
+
+### Added
+
+- Hookable `request()` HTTP transport for deterministic integrations and automated tests without external network access
+
+### Fixed
+
+- Debug mode now bypasses cache writes as documented, keeping fake-transport checks free of persistent cache state
+
+### Security
+
+- Plausible API requests now verify the TLS peer certificate and hostname
+
+---
+
+## [1.3.0] - 2026-04-09
+
+### Added
+
+- Interactive drill-down filters across page, source, country, device, and browser dashboard widgets
+
+---
+
 ## [1.2.0] - 2026-03-28
 
 ### Added

@@ -18,7 +18,8 @@
  *  - bounce_rate / visit_duration are incompatible with event:page filters;
  *    use visit:entry_page filters instead for per-page session data.
  *
- * @version 1.2.0
+ * @method array request(string $method, string $url, array $headers = [], $body = null, int $timeout = 15)
+ * @version 1.3.1
  * @author  Maxim Semenov <maxim@smnv.org> (smnv.org)
  * @link    https://github.com/mxmsmnv/PlausibleAnalytics
  * @link    https://smnv.org
@@ -38,7 +39,7 @@ class PlausibleAnalytics extends Process implements ConfigurableModule {
     public static function getModuleInfo() {
         return [
             'title'      => 'Plausible Analytics',
-            'version'    => '1.3.0',
+            'version'    => '1.3.1',
             'summary'    => 'Plausible Analytics dashboard using Stats API v2 with page-edit widget, traffic trends chart, and geo/device tabs.',
             'author'     => 'Maxim Semenov',
             'href'       => 'https://smnv.org',
@@ -741,6 +742,44 @@ class PlausibleAnalytics extends Process implements ConfigurableModule {
     // -------------------------------------------------------------------------
 
     /**
+     * Execute an HTTP request for the Plausible API.
+     *
+     * This method is hookable so integrations and automated tests can provide
+     * a deterministic local transport without changing module configuration or
+     * allowing a request to leave the ProcessWire installation.
+     *
+     * @param  string      $method  HTTP method (GET or POST).
+     * @param  string      $url     Absolute request URL.
+     * @param  array       $headers Request headers.
+     * @param  string|null $body    Optional request body.
+     * @param  int         $timeout Timeout in seconds.
+     * @return array{body:string,status:int,error:string}
+     */
+    public function ___request($method, $url, array $headers = [], $body = null, $timeout = 15) {
+        $ch = curl_init();
+        $options = [
+            CURLOPT_URL            => $url,
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_HTTPHEADER     => $headers,
+            CURLOPT_TIMEOUT        => (int) $timeout,
+            CURLOPT_SSL_VERIFYPEER => true,
+            CURLOPT_SSL_VERIFYHOST => 2,
+        ];
+        if (strtoupper($method) === 'POST') {
+            $options[CURLOPT_POST] = true;
+            $options[CURLOPT_POSTFIELDS] = $body;
+        }
+        curl_setopt_array($ch, $options);
+
+        $response = curl_exec($ch);
+        return [
+            'body'   => $response === false ? '' : (string) $response,
+            'status' => (int) curl_getinfo($ch, CURLINFO_HTTP_CODE),
+            'error'  => (string) curl_error($ch),
+        ];
+    }
+
+    /**
      * Fetch the current realtime visitor count.
      *
      * Uses the v1 realtime endpoint — there is no v2 equivalent.
@@ -759,20 +798,15 @@ class PlausibleAnalytics extends Process implements ConfigurableModule {
         $url = rtrim($this->base_url ?: 'https://plausible.io', '/')
             . '/api/v1/stats/realtime/visitors?site_id=' . urlencode($this->site_id);
 
-        $ch = curl_init();
-        curl_setopt_array($ch, [
-            CURLOPT_URL            => $url,
-            CURLOPT_RETURNTRANSFER => true,
-            CURLOPT_HTTPHEADER     => ['Authorization: Bearer ' . $this->api_key],
-            CURLOPT_TIMEOUT        => 10,
-            CURLOPT_SSL_VERIFYPEER => false,
-        ]);
-        $response = curl_exec($ch);
-        $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        $result = $this->request('GET', $url, ['Authorization: Bearer ' . $this->api_key], null, 10);
+        $response = $result['body'];
+        $httpCode = $result['status'];
 
         if ($httpCode === 200 && is_numeric(trim($response))) {
             $count = (int) trim($response);
-            $this->wire('cache')->save($cacheName, $count, 60);
+            if (!$this->debug_mode) {
+                $this->wire('cache')->save($cacheName, $count, 60);
+            }
             return $count;
         }
 
@@ -821,24 +855,14 @@ class PlausibleAnalytics extends Process implements ConfigurableModule {
         $url     = rtrim($this->base_url ?: 'https://plausible.io', '/') . '/api/v2/query';
         $payload = json_encode($query);
 
-        $ch = curl_init();
-        curl_setopt_array($ch, [
-            CURLOPT_URL            => $url,
-            CURLOPT_RETURNTRANSFER => true,
-            CURLOPT_POST           => true,
-            CURLOPT_POSTFIELDS     => $payload,
-            CURLOPT_HTTPHEADER     => [
-                'Authorization: Bearer ' . $this->api_key,
-                'Content-Type: application/json',
-                'Content-Length: ' . strlen($payload),
-            ],
-            CURLOPT_TIMEOUT        => 15,
-            CURLOPT_SSL_VERIFYPEER => false,
-        ]);
-
-        $response = curl_exec($ch);
-        $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-        $curlErr  = curl_error($ch);
+        $result = $this->request('POST', $url, [
+            'Authorization: Bearer ' . $this->api_key,
+            'Content-Type: application/json',
+            'Content-Length: ' . strlen($payload),
+        ], $payload, 15);
+        $response = $result['body'];
+        $httpCode = $result['status'];
+        $curlErr  = $result['error'];
 
         if ($this->debug_mode) {
             $this->debug_log[] = 'POST /api/v2/query | Code: ' . $httpCode
@@ -855,7 +879,9 @@ class PlausibleAnalytics extends Process implements ConfigurableModule {
         }
 
         if ($httpCode === 200 && $response) {
-            $this->wire('cache')->save($cacheName, $response, $cacheSeconds);
+            if (!$this->debug_mode) {
+                $this->wire('cache')->save($cacheName, $response, $cacheSeconds);
+            }
             $this->last_cache_time = time();
             return json_decode($response, true);
         }

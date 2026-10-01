@@ -136,6 +136,10 @@ Key differences from v1 that are handled internally:
 - Event metrics (`visitors`, `pageviews`) and session metrics (`bounce_rate`, `visit_duration`) cannot be mixed in a single request — the module splits them into separate calls where needed
 - `visit:entry_page` filter is used for per-page session metrics instead of `event:page`, which is incompatible with session metrics in v2
 
+### HTTP transport
+
+All API traffic passes through the hookable `PlausibleAnalytics::request()` method. Integrations and automated tests can replace this method with a ProcessWire hook to provide deterministic responses without external network access. The default cURL transport verifies both the TLS peer certificate and hostname.
+
 ---
 
 ## Cache
